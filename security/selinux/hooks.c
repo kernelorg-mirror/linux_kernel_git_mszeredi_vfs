@@ -81,6 +81,7 @@
 #include <linux/syslog.h>
 #include <linux/user_namespace.h>
 #include <linux/export.h>
+#include <linux/msg.h>
 
 #include "avc.h"
 #include "objsec.h"
