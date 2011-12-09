@@ -264,7 +264,7 @@ static int remount(struct super_block *sb, int *flags, char *data)
 		return -EINVAL;
 	}
 
-	if (usbfs_mount && usbfs_mount->mnt_sb)
+	if (usbfs_mount)
 		update_sb(usbfs_mount->mnt_sb);
 
 	return 0;
@@ -498,9 +498,8 @@ static int fs_create_by_name (const char *name, umode_t mode,
 	 * have around.
 	 */
 	if (!parent ) {
-		if (usbfs_mount && usbfs_mount->mnt_sb) {
+		if (usbfs_mount)
 			parent = usbfs_mount->mnt_root;
-		}
 	}
 
 	if (!parent) {
