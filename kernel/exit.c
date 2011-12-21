@@ -51,7 +51,6 @@
 #include <trace/events/sched.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/oom.h>
-#include <linux/shm.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>

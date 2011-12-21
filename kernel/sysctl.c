@@ -58,7 +58,6 @@
 #include <linux/oom.h>
 #include <linux/kmod.h>
 #include <linux/capability.h>
-#include <linux/binfmts.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>

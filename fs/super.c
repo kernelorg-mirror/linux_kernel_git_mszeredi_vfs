@@ -32,7 +32,6 @@
 #include <linux/backing-dev.h>
 #include <linux/rculist_bl.h>
 #include <linux/cleancache.h>
-#include <linux/fsnotify.h>
 #include "internal.h"
 
 

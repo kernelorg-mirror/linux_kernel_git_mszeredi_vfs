@@ -28,7 +28,6 @@
 #include <linux/prctl.h>
 #include <linux/securebits.h>
 #include <linux/user_namespace.h>
-#include <linux/binfmts.h>
 
 /*
  * If a non-root user executes a setuid-root binary in
