@@ -4412,8 +4412,8 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root,
 				     struct inode *dir,
 				     const char *name, int name_len,
-				     u64 ref_objectid, u64 objectid, int mode,
-				     u64 *index)
+				     u64 ref_objectid, u64 objectid,
+				     umode_t mode, u64 *index)
 {
 	struct inode *inode;
 	struct btrfs_inode_item *inode_item;
@@ -4590,17 +4590,13 @@ static int btrfs_add_nondir(struct btrfs_trans_handle *trans,
 	int err = btrfs_add_link(trans, dir, inode,
 				 dentry->d_name.name, dentry->d_name.len,
 				 backref, index);
-	if (!err) {
-		d_instantiate(dentry, inode);
-		return 0;
-	}
 	if (err > 0)
 		err = -EEXIST;
 	return err;
 }
 
 static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
-			int mode, dev_t rdev)
+			umode_t mode, dev_t rdev)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
@@ -4655,6 +4651,7 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	else {
 		init_special_inode(inode, inode->i_mode, rdev);
 		btrfs_update_inode(trans, root, inode);
+		d_instantiate(dentry, inode);
 	}
 out_unlock:
 	nr = trans->blocks_used;
@@ -4668,7 +4665,7 @@ out_unlock:
 }
 
 static int btrfs_create(struct inode *dir, struct dentry *dentry,
-			int mode, struct nameidata *nd)
+			umode_t mode, struct nameidata *nd)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
@@ -4722,6 +4719,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		inode->i_mapping->a_ops = &btrfs_aops;
 		inode->i_mapping->backing_dev_info = &root->fs_info->bdi;
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
+		d_instantiate(dentry, inode);
 	}
 out_unlock:
 	nr = trans->blocks_used;
@@ -4780,6 +4778,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		err = btrfs_update_inode(trans, root, inode);
 		BUG_ON(err);
 		btrfs_log_new_name(trans, inode, NULL, parent);
+		d_instantiate(dentry, inode);
 	}
 
 	nr = trans->blocks_used;
@@ -4793,7 +4792,7 @@ fail:
 	return err;
 }
 
-static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode = NULL;
 	struct btrfs_trans_handle *trans;
@@ -6762,7 +6761,6 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 static void btrfs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 
@@ -7245,6 +7243,8 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		drop_inode = 1;
 
 out_unlock:
+	if (!err)
+		d_instantiate(dentry, inode);
 	nr = trans->blocks_used;
 	btrfs_end_transaction_throttle(trans, root);
 	if (drop_inode) {

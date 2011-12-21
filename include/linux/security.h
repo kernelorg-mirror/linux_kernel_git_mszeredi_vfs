@@ -22,22 +22,34 @@
 #ifndef __LINUX_SECURITY_H
 #define __LINUX_SECURITY_H
 
-#include <linux/fs.h>
-#include <linux/fsnotify.h>
-#include <linux/binfmts.h>
-#include <linux/dcache.h>
-#include <linux/signal.h>
-#include <linux/resource.h>
-#include <linux/sem.h>
-#include <linux/shm.h>
-#include <linux/mm.h> /* PAGE_ALIGN */
-#include <linux/msg.h>
-#include <linux/sched.h>
 #include <linux/key.h>
-#include <linux/xfrm.h>
+#include <linux/capability.h>
 #include <linux/slab.h>
-#include <linux/xattr.h>
-#include <net/flow.h>
+#include <linux/err.h>
+
+struct linux_binprm;
+struct cred;
+struct rlimit;
+struct siginfo;
+struct sem_array;
+struct sembuf;
+struct kern_ipc_perm;
+struct audit_context;
+struct super_block;
+struct inode;
+struct dentry;
+struct vfsmount;
+struct path;
+struct qstr;
+struct nameidata;
+struct iattr;
+struct fown_struct;
+struct file_operations;
+struct shmid_kernel;
+struct msg_msg;
+struct msg_queue;
+struct xattr;
+struct xfrm_sec_ctx;
 
 /* Maximum number of letters for an LSM name string */
 #define SECURITY_NAME_MAX	10
@@ -132,18 +144,6 @@ struct request_sock;
 #define LSM_UNSAFE_PTRACE_CAP	4
 
 #ifdef CONFIG_MMU
-/*
- * If a hint addr is less than mmap_min_addr change hint to be as
- * low as possible but still greater than mmap_min_addr
- */
-static inline unsigned long round_hint_to_min(unsigned long hint)
-{
-	hint &= PAGE_MASK;
-	if (((void *)hint != NULL) &&
-	    (hint < mmap_min_addr))
-		return PAGE_ALIGN(mmap_min_addr);
-	return hint;
-}
 extern int mmap_min_addr_handler(struct ctl_table *table, int write,
 				 void __user *buffer, size_t *lenp, loff_t *ppos);
 #endif
@@ -1424,9 +1424,9 @@ struct security_operations {
 
 #ifdef CONFIG_SECURITY_PATH
 	int (*path_unlink) (struct path *dir, struct dentry *dentry);
-	int (*path_mkdir) (struct path *dir, struct dentry *dentry, int mode);
+	int (*path_mkdir) (struct path *dir, struct dentry *dentry, umode_t mode);
 	int (*path_rmdir) (struct path *dir, struct dentry *dentry);
-	int (*path_mknod) (struct path *dir, struct dentry *dentry, int mode,
+	int (*path_mknod) (struct path *dir, struct dentry *dentry, umode_t mode,
 			   unsigned int dev);
 	int (*path_truncate) (struct path *path);
 	int (*path_symlink) (struct path *dir, struct dentry *dentry,
@@ -1435,8 +1435,7 @@ struct security_operations {
 			  struct dentry *new_dentry);
 	int (*path_rename) (struct path *old_dir, struct dentry *old_dentry,
 			    struct path *new_dir, struct dentry *new_dentry);
-	int (*path_chmod) (struct dentry *dentry, struct vfsmount *mnt,
-			   mode_t mode);
+	int (*path_chmod) (struct path *path, umode_t mode);
 	int (*path_chown) (struct path *path, uid_t uid, gid_t gid);
 	int (*path_chroot) (struct path *path);
 #endif
@@ -1447,16 +1446,16 @@ struct security_operations {
 				    const struct qstr *qstr, char **name,
 				    void **value, size_t *len);
 	int (*inode_create) (struct inode *dir,
-			     struct dentry *dentry, int mode);
+			     struct dentry *dentry, umode_t mode);
 	int (*inode_link) (struct dentry *old_dentry,
 			   struct inode *dir, struct dentry *new_dentry);
 	int (*inode_unlink) (struct inode *dir, struct dentry *dentry);
 	int (*inode_symlink) (struct inode *dir,
 			      struct dentry *dentry, const char *old_name);
-	int (*inode_mkdir) (struct inode *dir, struct dentry *dentry, int mode);
+	int (*inode_mkdir) (struct inode *dir, struct dentry *dentry, umode_t mode);
 	int (*inode_rmdir) (struct inode *dir, struct dentry *dentry);
 	int (*inode_mknod) (struct inode *dir, struct dentry *dentry,
-			    int mode, dev_t dev);
+			    umode_t mode, dev_t dev);
 	int (*inode_rename) (struct inode *old_dir, struct dentry *old_dentry,
 			     struct inode *new_dir, struct dentry *new_dentry);
 	int (*inode_readlink) (struct dentry *dentry);
@@ -1684,9 +1683,7 @@ int security_quotactl(int cmds, int type, int id, struct super_block *sb);
 int security_quota_on(struct dentry *dentry);
 int security_syslog(int type);
 int security_settime(const struct timespec *ts, const struct timezone *tz);
-int security_vm_enough_memory(long pages);
 int security_vm_enough_memory_mm(struct mm_struct *mm, long pages);
-int security_vm_enough_memory_kern(long pages);
 int security_bprm_set_creds(struct linux_binprm *bprm);
 int security_bprm_check(struct linux_binprm *bprm);
 void security_bprm_committing_creds(struct linux_binprm *bprm);
@@ -1716,15 +1713,15 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 int security_old_inode_init_security(struct inode *inode, struct inode *dir,
 				     const struct qstr *qstr, char **name,
 				     void **value, size_t *len);
-int security_inode_create(struct inode *dir, struct dentry *dentry, int mode);
+int security_inode_create(struct inode *dir, struct dentry *dentry, umode_t mode);
 int security_inode_link(struct dentry *old_dentry, struct inode *dir,
 			 struct dentry *new_dentry);
 int security_inode_unlink(struct inode *dir, struct dentry *dentry);
 int security_inode_symlink(struct inode *dir, struct dentry *dentry,
 			   const char *old_name);
-int security_inode_mkdir(struct inode *dir, struct dentry *dentry, int mode);
+int security_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 int security_inode_rmdir(struct inode *dir, struct dentry *dentry);
-int security_inode_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev);
+int security_inode_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev);
 int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
 			  struct inode *new_dir, struct dentry *new_dentry);
 int security_inode_readlink(struct dentry *dentry);
@@ -1924,23 +1921,9 @@ static inline int security_settime(const struct timespec *ts,
 	return cap_settime(ts, tz);
 }
 
-static inline int security_vm_enough_memory(long pages)
-{
-	WARN_ON(current->mm == NULL);
-	return cap_vm_enough_memory(current->mm, pages);
-}
-
 static inline int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
 {
-	WARN_ON(mm == NULL);
 	return cap_vm_enough_memory(mm, pages);
-}
-
-static inline int security_vm_enough_memory_kern(long pages)
-{
-	/* If current->mm is a kernel thread then we will pass NULL,
-	   for this specific case that is fine */
-	return cap_vm_enough_memory(current->mm, pages);
 }
 
 static inline int security_bprm_set_creds(struct linux_binprm *bprm)
@@ -2061,7 +2044,7 @@ static inline int security_old_inode_init_security(struct inode *inode,
 
 static inline int security_inode_create(struct inode *dir,
 					 struct dentry *dentry,
-					 int mode)
+					 umode_t mode)
 {
 	return 0;
 }
@@ -2855,9 +2838,9 @@ static inline void security_skb_classify_flow(struct sk_buff *skb, struct flowi 
 
 #ifdef CONFIG_SECURITY_PATH
 int security_path_unlink(struct path *dir, struct dentry *dentry);
-int security_path_mkdir(struct path *dir, struct dentry *dentry, int mode);
+int security_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode);
 int security_path_rmdir(struct path *dir, struct dentry *dentry);
-int security_path_mknod(struct path *dir, struct dentry *dentry, int mode,
+int security_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
 			unsigned int dev);
 int security_path_truncate(struct path *path);
 int security_path_symlink(struct path *dir, struct dentry *dentry,
@@ -2866,8 +2849,7 @@ int security_path_link(struct dentry *old_dentry, struct path *new_dir,
 		       struct dentry *new_dentry);
 int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 			 struct path *new_dir, struct dentry *new_dentry);
-int security_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
-			mode_t mode);
+int security_path_chmod(struct path *path, umode_t mode);
 int security_path_chown(struct path *path, uid_t uid, gid_t gid);
 int security_path_chroot(struct path *path);
 #else	/* CONFIG_SECURITY_PATH */
@@ -2877,7 +2859,7 @@ static inline int security_path_unlink(struct path *dir, struct dentry *dentry)
 }
 
 static inline int security_path_mkdir(struct path *dir, struct dentry *dentry,
-				      int mode)
+				      umode_t mode)
 {
 	return 0;
 }
@@ -2888,7 +2870,7 @@ static inline int security_path_rmdir(struct path *dir, struct dentry *dentry)
 }
 
 static inline int security_path_mknod(struct path *dir, struct dentry *dentry,
-				      int mode, unsigned int dev)
+				      umode_t mode, unsigned int dev)
 {
 	return 0;
 }
@@ -2919,9 +2901,7 @@ static inline int security_path_rename(struct path *old_dir,
 	return 0;
 }
 
-static inline int security_path_chmod(struct dentry *dentry,
-				      struct vfsmount *mnt,
-				      mode_t mode)
+static inline int security_path_chmod(struct path *path, umode_t mode)
 {
 	return 0;
 }
@@ -3010,7 +2990,7 @@ static inline void security_audit_rule_free(void *lsmrule)
 
 #ifdef CONFIG_SECURITYFS
 
-extern struct dentry *securityfs_create_file(const char *name, mode_t mode,
+extern struct dentry *securityfs_create_file(const char *name, umode_t mode,
 					     struct dentry *parent, void *data,
 					     const struct file_operations *fops);
 extern struct dentry *securityfs_create_dir(const char *name, struct dentry *parent);
@@ -3025,7 +3005,7 @@ static inline struct dentry *securityfs_create_dir(const char *name,
 }
 
 static inline struct dentry *securityfs_create_file(const char *name,
-						    mode_t mode,
+						    umode_t mode,
 						    struct dentry *parent,
 						    void *data,
 						    const struct file_operations *fops)
