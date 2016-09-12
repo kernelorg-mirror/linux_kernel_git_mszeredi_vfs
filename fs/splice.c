@@ -260,62 +260,6 @@ void splice_shrink_spd(struct splice_pipe_desc *spd)
 	kfree(spd->partial);
 }
 
-static int
-__generic_file_splice_read(struct file *in, loff_t *ppos,
-			   struct pipe_inode_info *pipe, size_t len,
-			   unsigned int flags)
-{
-	unsigned int loff, nr_pages, req_pages;
-	struct page *pages[PIPE_DEF_BUFFERS];
-	struct partial_page partial[PIPE_DEF_BUFFERS];
-	struct page *page;
-	pgoff_t index;
-	int error;
-	struct splice_pipe_desc spd = {
-		.pages = pages,
-		.partial = partial,
-		.nr_pages_max = PIPE_DEF_BUFFERS,
-		.flags = flags,
-		.ops = &page_cache_pipe_buf_ops,
-		.spd_release = spd_release_page,
-	};
-
-	if (splice_grow_spd(pipe, &spd))
-		return -ENOMEM;
-
-	index = *ppos >> PAGE_SHIFT;
-	loff = *ppos & ~PAGE_MASK;
-	req_pages = (len + loff + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	nr_pages = min(req_pages, spd.nr_pages_max);
-
-	error = 0;
-	while (spd.nr_pages < nr_pages && len) {
-		long ret;
-
-		ret = get_page_for_read(in, loff, len, index, &page);
-		if (ret <= 0) {
-			error = ret;
-			break;
-		}
-
-		spd.pages[spd.nr_pages] = page;
-		spd.partial[spd.nr_pages].offset = loff;
-		spd.partial[spd.nr_pages].len = ret;
-		spd.nr_pages++;
-		index++;
-		len -= ret;
-		loff = 0;
-	}
-
-	in->f_ra.prev_pos = (loff_t)index << PAGE_SHIFT;
-
-	if (spd.nr_pages)
-		error = splice_to_pipe(pipe, &spd);
-
-	splice_shrink_spd(&spd);
-	return error;
-}
-
 /**
  * generic_file_splice_read - splice data from file to a pipe
  * @in:		file to splice from
@@ -334,16 +278,60 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 				 struct pipe_inode_info *pipe, size_t len,
 				 unsigned int flags)
 {
-	int ret;
+	unsigned int loff, nr_pages, req_pages;
+	struct page *pages[PIPE_DEF_BUFFERS];
+	struct partial_page partial[PIPE_DEF_BUFFERS];
+	struct page *page;
+	pgoff_t index;
+	int ret = 0;
+	struct splice_pipe_desc spd = {
+		.pages = pages,
+		.partial = partial,
+		.nr_pages_max = PIPE_DEF_BUFFERS,
+		.flags = flags,
+		.ops = &page_cache_pipe_buf_ops,
+		.spd_release = spd_release_page,
+	};
 
 	if (IS_DAX(in->f_mapping->host))
 		return default_file_splice_read(in, ppos, pipe, len, flags);
 
-	ret = __generic_file_splice_read(in, ppos, pipe, len, flags);
+	if (splice_grow_spd(pipe, &spd))
+		return -ENOMEM;
+
+	index = *ppos >> PAGE_SHIFT;
+	loff = *ppos & ~PAGE_MASK;
+	req_pages = (len + loff + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	nr_pages = min(req_pages, spd.nr_pages_max);
+
+	while (spd.nr_pages < nr_pages && len) {
+		int nr;
+
+		nr = get_page_for_read(in, loff, len, index, &page);
+		if (nr <= 0) {
+			ret = nr;
+			break;
+		}
+
+		spd.pages[spd.nr_pages] = page;
+		spd.partial[spd.nr_pages].offset = loff;
+		spd.partial[spd.nr_pages].len = nr;
+		spd.nr_pages++;
+		index++;
+		len -= nr;
+		loff = 0;
+	}
+
+	in->f_ra.prev_pos = (loff_t)index << PAGE_SHIFT;
+
+	if (spd.nr_pages)
+		ret = splice_to_pipe(pipe, &spd);
+
 	if (ret > 0) {
 		*ppos += ret;
 		file_accessed(in);
 	}
+	splice_shrink_spd(&spd);
 
 	return ret;
 }
