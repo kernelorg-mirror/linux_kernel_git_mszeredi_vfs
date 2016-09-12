@@ -95,7 +95,6 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
 
 const struct pipe_buf_operations page_cache_pipe_buf_ops = {
 	.can_merge = 0,
-	.confirm = generic_pipe_buf_confirm,
 	.release = page_cache_pipe_buf_release,
 	.steal = page_cache_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
@@ -113,7 +112,6 @@ static int user_page_pipe_buf_steal(struct pipe_inode_info *pipe,
 
 static const struct pipe_buf_operations user_page_pipe_buf_ops = {
 	.can_merge = 0,
-	.confirm = generic_pipe_buf_confirm,
 	.release = page_cache_pipe_buf_release,
 	.steal = user_page_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
@@ -507,7 +505,6 @@ EXPORT_SYMBOL(generic_file_splice_read);
 
 static const struct pipe_buf_operations default_pipe_buf_ops = {
 	.can_merge = 0,
-	.confirm = generic_pipe_buf_confirm,
 	.release = generic_pipe_buf_release,
 	.steal = generic_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
@@ -522,7 +519,6 @@ static int generic_pipe_buf_nosteal(struct pipe_inode_info *pipe,
 /* Pipe buffer operations for a socket and similar. */
 const struct pipe_buf_operations nosteal_pipe_buf_ops = {
 	.can_merge = 0,
-	.confirm = generic_pipe_buf_confirm,
 	.release = generic_pipe_buf_release,
 	.steal = generic_pipe_buf_nosteal,
 	.get = generic_pipe_buf_get,

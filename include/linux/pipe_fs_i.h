@@ -62,12 +62,6 @@ struct pipe_inode_info {
 };
 
 /*
- * Note on the nesting of these functions:
- *
- * ->confirm()
- *	->steal()
- *
- * That is, ->steal() must be called on a confirmed buffer.
  * See below for the meaning of each operation. Also see kerneldoc
  * in fs/pipe.c for the pipe and generic variants of these hooks.
  */
@@ -78,15 +72,6 @@ struct pipe_buf_operations {
 	 * page segment is always used for new data.
 	 */
 	int can_merge;
-
-	/*
-	 * ->confirm() verifies that the data in the pipe buffer is there
-	 * and that the contents are good. If the pages in the pipe belong
-	 * to a file system, we may need to wait for IO completion in this
-	 * hook. Returns 0 for good, or a negative error value in case of
-	 * error.
-	 */
-	int (*confirm)(struct pipe_inode_info *, struct pipe_buffer *);
 
 	/*
 	 * When the contents of this pipe buffer has been completely
@@ -143,7 +128,7 @@ static inline void pipe_buf_release(struct pipe_inode_info *pipe,
 static inline int pipe_buf_confirm(struct pipe_inode_info *pipe,
 				   struct pipe_buffer *buf)
 {
-	return buf->ops->confirm(pipe, buf);
+	return 0;
 }
 
 /**
@@ -179,7 +164,6 @@ void free_pipe_info(struct pipe_inode_info *);
 
 /* Generic pipe buffer ops functions */
 void generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
-int generic_pipe_buf_confirm(struct pipe_inode_info *, struct pipe_buffer *);
 int generic_pipe_buf_steal(struct pipe_inode_info *, struct pipe_buffer *);
 void generic_pipe_buf_release(struct pipe_inode_info *, struct pipe_buffer *);
 
