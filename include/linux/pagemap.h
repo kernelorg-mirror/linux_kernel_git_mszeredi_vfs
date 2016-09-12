@@ -653,4 +653,7 @@ static inline unsigned long dir_pages(struct inode *inode)
 			       PAGE_SHIFT;
 }
 
+int get_page_for_read(struct file *filp, unsigned long offset, size_t count,
+		      pgoff_t index, struct page **pagep);
+
 #endif /* _LINUX_PAGEMAP_H */
