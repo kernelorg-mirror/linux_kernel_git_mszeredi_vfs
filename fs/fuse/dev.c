@@ -2015,10 +2015,9 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 
 	ret = fuse_dev_do_write(fud, &cs, len);
 
-	for (idx = 0; idx < nbuf; idx++) {
-		struct pipe_buffer *buf = &bufs[idx];
-		buf->ops->release(pipe, buf);
-	}
+	for (idx = 0; idx < nbuf; idx++)
+		pipe_buf_release(pipe, &bufs[idx]);
+
 out:
 	kfree(bufs);
 	return ret;
