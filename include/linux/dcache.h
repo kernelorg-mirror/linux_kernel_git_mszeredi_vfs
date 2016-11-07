@@ -69,12 +69,12 @@ extern struct dentry_stat_t dentry_stat;
  * large memory footprint increase).
  */
 #ifdef CONFIG_64BIT
-# define DNAME_INLINE_LEN 32 /* 192 bytes */
+# define DNAME_INLINE_LEN 40 /* 192 bytes */
 #else
 # ifdef CONFIG_SMP
-#  define DNAME_INLINE_LEN 36 /* 128 bytes */
-# else
 #  define DNAME_INLINE_LEN 40 /* 128 bytes */
+# else
+#  define DNAME_INLINE_LEN 44 /* 128 bytes */
 # endif
 #endif
 
@@ -95,7 +95,6 @@ struct dentry {
 	struct lockref d_lockref;	/* per-dentry lock and refcount */
 	const struct dentry_operations *d_op;
 	struct super_block *d_sb;	/* The root of the dentry tree */
-	unsigned long d_time;		/* used by d_revalidate */
 	void *d_fsdata;			/* fs-specific data */
 
 	union {
