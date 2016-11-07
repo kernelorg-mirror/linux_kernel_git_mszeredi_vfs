@@ -168,20 +168,30 @@ static inline int ncp_strnicmp(const struct nls_table *t,
 
 #endif /* CONFIG_NCPFS_NLS */
 
-#define NCP_GET_AGE(dentry)	(jiffies - (dentry)->d_time)
+struct ncp_dentry {
+	unsigned long time;
+	bool cached;
+};
+
+static inline struct ncp_dentry *NCP_DENTRY(struct dentry *dentry)
+{
+	return (struct ncp_dentry *) dentry->d_fsdata;
+}
+
+#define NCP_GET_AGE(dentry)	(jiffies - NCP_DENTRY(dentry)->time)
 #define NCP_MAX_AGE(server)	atomic_read(&(server)->dentry_ttl)
 #define NCP_TEST_AGE(server,dentry)	(NCP_GET_AGE(dentry) < NCP_MAX_AGE(server))
 
 static inline void
 ncp_age_dentry(struct ncp_server* server, struct dentry* dentry)
 {
-	dentry->d_time = jiffies - NCP_MAX_AGE(server);
+	NCP_DENTRY(dentry)->time = jiffies - NCP_MAX_AGE(server);
 }
 
 static inline void
 ncp_new_dentry(struct dentry* dentry)
 {
-	dentry->d_time = jiffies;
+	NCP_DENTRY(dentry)->time = jiffies;
 }
 
 struct ncp_cache_head {

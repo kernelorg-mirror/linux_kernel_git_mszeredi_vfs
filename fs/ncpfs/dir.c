@@ -72,6 +72,8 @@ const struct inode_operations ncp_dir_inode_operations =
 /*
  * Dentry operations routines
  */
+static int ncp_d_init(struct dentry *);
+static void ncp_d_release(struct dentry *);
 static int ncp_lookup_validate(struct dentry *, unsigned int);
 static int ncp_hash_dentry(const struct dentry *, struct qstr *);
 static int ncp_compare_dentry(const struct dentry *,
@@ -81,6 +83,8 @@ static void ncp_d_prune(struct dentry *dentry);
 
 const struct dentry_operations ncp_dentry_operations =
 {
+	.d_init		= ncp_d_init,
+	.d_release	= ncp_d_release,
 	.d_revalidate	= ncp_lookup_validate,
 	.d_hash		= ncp_hash_dentry,
 	.d_compare	= ncp_compare_dentry,
@@ -305,6 +309,17 @@ leave_me:;
 }
 #endif	/* CONFIG_NCPFS_STRONG */
 
+static int ncp_d_init(struct dentry *dentry)
+{
+	dentry->d_fsdata = kzalloc(sizeof(struct ncp_dentry), GFP_KERNEL);
+
+	return dentry->d_fsdata ? 0 : -ENOMEM;
+}
+
+static void ncp_d_release(struct dentry *dentry)
+{
+	kfree(dentry->d_fsdata);
+}
 
 static int
 ncp_lookup_validate(struct dentry *dentry, unsigned int flags)
@@ -408,7 +423,7 @@ ncp_invalidate_dircache_entries(struct dentry *parent)
 
 	spin_lock(&parent->d_lock);
 	list_for_each_entry(dentry, &parent->d_subdirs, d_child) {
-		dentry->d_fsdata = NULL;
+		NCP_DENTRY(dentry)->cached = false;
 		ncp_age_dentry(server, dentry);
 	}
 	spin_unlock(&parent->d_lock);
@@ -568,7 +583,7 @@ out:
 
 static void ncp_d_prune(struct dentry *dentry)
 {
-	if (!dentry->d_fsdata)	/* not referenced from page cache */
+	if (!NCP_DENTRY(dentry)->cached) /* not referenced from page cache */
 		return;
 	NCP_FINFO(d_inode(dentry->d_parent))->flags &= ~NCPI_DIR_CACHE;
 }
@@ -659,7 +674,7 @@ ncp_fill_cache(struct file *file, struct dir_context *ctx,
 	}
 	if (ctl.cache) {
 		if (d_really_is_positive(newdent)) {
-			newdent->d_fsdata = newdent;
+			NCP_DENTRY(newdent)->cached = true;
 			ctl.cache->dentry[ctl.idx] = newdent;
 			ino = d_inode(newdent)->i_ino;
 			ncp_new_dentry(newdent);
