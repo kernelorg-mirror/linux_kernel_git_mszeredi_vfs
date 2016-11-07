@@ -1041,7 +1041,7 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry,
 		return 1;
 	if (NFS_SERVER(dir)->flags & NFS_MOUNT_LOOKUP_CACHE_NONE)
 		return 0;
-	if (!nfs_verify_change_attribute(dir, dentry->d_time))
+	if (!nfs_verify_change_attribute(dir, NFS_D(dentry)->verf))
 		return 0;
 	/* Revalidate nfsi->cache_change_attribute before we declare a match */
 	if (rcu_walk)
@@ -1050,7 +1050,7 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry,
 		ret = nfs_revalidate_inode(NFS_SERVER(dir), dir);
 	if (ret < 0)
 		return 0;
-	if (!nfs_verify_change_attribute(dir, dentry->d_time))
+	if (!nfs_verify_change_attribute(dir, NFS_D(dentry)->verf))
 		return 0;
 	return 1;
 }
@@ -1358,15 +1358,23 @@ static void nfs_dentry_iput(struct dentry *dentry, struct inode *inode)
 	iput(inode);
 }
 
+static int nfs_d_init(struct dentry *dentry)
+{
+	dentry->d_fsdata = kzalloc(sizeof(struct nfs_dentry), GFP_KERNEL);
+
+	return dentry->d_fsdata ? 0 : -ENOMEM;
+}
+
 static void nfs_d_release(struct dentry *dentry)
 {
 	/* free cached devname value, if it survived that far */
-	if (unlikely(dentry->d_fsdata)) {
+	if (unlikely(NFS_D(dentry)->devname)) {
 		if (dentry->d_flags & DCACHE_NFSFS_RENAMED)
 			WARN_ON(1);
 		else
-			kfree(dentry->d_fsdata);
+			kfree(NFS_D(dentry)->devname);
 	}
+	kfree_rcu(NFS_D(dentry), rcu);
 }
 
 const struct dentry_operations nfs_dentry_operations = {
@@ -1375,6 +1383,7 @@ const struct dentry_operations nfs_dentry_operations = {
 	.d_delete	= nfs_dentry_delete,
 	.d_iput		= nfs_dentry_iput,
 	.d_automount	= nfs_d_automount,
+	.d_init		= nfs_d_init,
 	.d_release	= nfs_d_release,
 };
 EXPORT_SYMBOL_GPL(nfs_dentry_operations);
@@ -1453,6 +1462,7 @@ const struct dentry_operations nfs4_dentry_operations = {
 	.d_delete	= nfs_dentry_delete,
 	.d_iput		= nfs_dentry_iput,
 	.d_automount	= nfs_d_automount,
+	.d_init		= nfs_d_init,
 	.d_release	= nfs_d_release,
 };
 EXPORT_SYMBOL_GPL(nfs4_dentry_operations);

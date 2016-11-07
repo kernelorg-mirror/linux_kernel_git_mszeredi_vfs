@@ -90,7 +90,7 @@ rename_retry:
 		*--end = '/';
 	}
 	*p = end;
-	base = dentry->d_fsdata;
+	base = NFS_D(dentry)->devname;
 	if (!base) {
 		spin_unlock(&dentry->d_lock);
 		rcu_read_unlock();

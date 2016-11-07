@@ -134,8 +134,8 @@ static int nfs_call_unlink(struct dentry *dentry, struct nfs_unlinkdata *data)
 		spin_lock(&alias->d_lock);
 		if (d_really_is_positive(alias) &&
 		    !(alias->d_flags & DCACHE_NFSFS_RENAMED)) {
-			devname_garbage = alias->d_fsdata;
-			alias->d_fsdata = data;
+			devname_garbage = NFS_D(alias)->devname;
+			NFS_D(alias)->data = data;
 			alias->d_flags |= DCACHE_NFSFS_RENAMED;
 			ret = 1;
 		} else
@@ -189,8 +189,8 @@ nfs_async_unlink(struct dentry *dentry, const struct qstr *name)
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED)
 		goto out_unlock;
 	dentry->d_flags |= DCACHE_NFSFS_RENAMED;
-	devname_garbage = dentry->d_fsdata;
-	dentry->d_fsdata = data;
+	devname_garbage = NFS_D(dentry)->devname;
+	NFS_D(dentry)->data = data;
 	spin_unlock(&dentry->d_lock);
 	/*
 	 * If we'd displaced old cached devname, free it.  At that
@@ -226,8 +226,8 @@ nfs_complete_unlink(struct dentry *dentry, struct inode *inode)
 
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags &= ~DCACHE_NFSFS_RENAMED;
-	data = dentry->d_fsdata;
-	dentry->d_fsdata = NULL;
+	data = NFS_D(dentry)->data;
+	NFS_D(dentry)->data = NULL;
 	spin_unlock(&dentry->d_lock);
 
 	if (NFS_STALE(inode) || !nfs_call_unlink(dentry, data))
@@ -240,10 +240,10 @@ nfs_cancel_async_unlink(struct dentry *dentry)
 {
 	spin_lock(&dentry->d_lock);
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED) {
-		struct nfs_unlinkdata *data = dentry->d_fsdata;
+		struct nfs_unlinkdata *data = NFS_D(dentry)->data;
 
 		dentry->d_flags &= ~DCACHE_NFSFS_RENAMED;
-		dentry->d_fsdata = NULL;
+		NFS_D(dentry)->data = NULL;
 		spin_unlock(&dentry->d_lock);
 		nfs_free_unlinkdata(data);
 		return;

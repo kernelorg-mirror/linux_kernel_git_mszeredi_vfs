@@ -187,6 +187,18 @@ struct nfs_inode {
 };
 
 /*
+ * NFS specific dentry data
+ */
+struct nfs_dentry {
+	union {
+		char *devname;
+		struct nfs_unlinkdata *data;
+		struct rcu_head rcu;
+	};
+	unsigned long verf;
+};
+
+/*
  * Cache validity bit flags
  */
 #define NFS_INO_INVALID_ATTR	0x0001		/* cached attrs are invalid */
@@ -215,6 +227,11 @@ struct nfs_inode {
 static inline struct nfs_inode *NFS_I(const struct inode *inode)
 {
 	return container_of(inode, struct nfs_inode, vfs_inode);
+}
+
+static inline struct nfs_dentry *NFS_D(struct dentry *dentry)
+{
+	return (struct nfs_dentry *) dentry->d_fsdata;
 }
 
 static inline struct nfs_server *NFS_SB(const struct super_block *s)
@@ -299,7 +316,7 @@ static inline int nfs_server_capable(struct inode *inode, int cap)
 
 static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
 {
-	dentry->d_time = verf;
+	NFS_D(dentry)->verf = verf;
 }
 
 /**
