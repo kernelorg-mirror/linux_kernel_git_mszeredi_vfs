@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/file.h>
 #include <linux/hashtable.h>
+#include <linux/ratelimit.h>
 #include "overlayfs.h"
 
 static int ovl_copy_up_truncate(struct dentry *dentry)
@@ -33,7 +34,7 @@ static int ovl_copy_up_truncate(struct dentry *dentry)
 	ovl_path_lower(dentry, &lowerpath);
 
 	old_cred = ovl_override_creds(dentry->d_sb);
-	err = vfs_getattr(&lowerpath, &stat);
+	err = ovl_getattr_int(dentry, &lowerpath, &stat);
 	if (!err) {
 		stat.size = 0;
 		err = ovl_copy_up_one(parent, dentry, &lowerpath, &stat);
@@ -88,6 +89,46 @@ out:
 	return err;
 }
 
+void ovl_get_ino(struct dentry *realdentry, u64 *ino)
+{
+	int err;
+	char buf[18];
+
+	err = vfs_getxattr(realdentry, OVL_XATTR_INO,
+			   buf, sizeof(buf) - 1);
+	if (err < 0) {
+		if (err != -ENODATA && err != -EOPNOTSUPP)
+			pr_warn_ratelimited("overlay: failed to get ino (%i)\n", err);
+	} else {
+		buf[err] = '\0';
+		err = kstrtoull(buf, 16, ino);
+		if (err)
+			pr_warn("overlay: invalid ino (%s)\n", buf);
+	}
+}
+
+int ovl_getattr_int(struct dentry *dentry, struct path *realpath,
+		    struct kstat *stat)
+{
+	int err;
+	u64 ino;
+
+	err = vfs_getattr(realpath, stat);
+	if (err)
+		return err;
+
+	ino = ovl_dentry_get_ino(dentry);
+	if (!ino) {
+		ino = stat->ino;
+		ovl_get_ino(realpath->dentry, &ino);
+		ovl_dentry_set_ino(dentry, ino);
+	}
+	stat->dev = dentry->d_sb->s_dev;
+	stat->ino = ino;
+
+	return 0;
+}
+
 static int ovl_getattr(struct vfsmount *mnt, struct dentry *dentry,
 			 struct kstat *stat)
 {
@@ -97,7 +138,7 @@ static int ovl_getattr(struct vfsmount *mnt, struct dentry *dentry,
 
 	ovl_path_real(dentry, &realpath);
 	old_cred = ovl_override_creds(dentry->d_sb);
-	err = vfs_getattr(&realpath, stat);
+	err = ovl_getattr_int(dentry, &realpath, stat);
 	revert_creds(old_cred);
 	return err;
 }

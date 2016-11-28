@@ -20,6 +20,7 @@ enum ovl_path_type {
 #define OVL_XATTR_PREFIX XATTR_TRUSTED_PREFIX "overlay."
 #define OVL_XATTR_OPAQUE OVL_XATTR_PREFIX "opaque"
 #define OVL_XATTR_REDIRECT OVL_XATTR_PREFIX "redirect"
+#define OVL_XATTR_INO OVL_XATTR_PREFIX "ino"
 
 #define OVL_ISUPPER_MASK 1UL
 
@@ -161,6 +162,8 @@ bool ovl_redirect_dir(struct super_block *sb);
 void ovl_clear_redirect_dir(struct super_block *sb);
 const char *ovl_dentry_get_redirect(struct dentry *dentry);
 void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect);
+u64 ovl_dentry_get_ino(struct dentry *dentry);
+void ovl_dentry_set_ino(struct dentry *dentry, u64 ino);
 void ovl_dentry_update(struct dentry *dentry, struct dentry *upperdentry);
 void ovl_inode_init(struct inode *inode, struct inode *realinode,
 		    bool is_upper);
@@ -171,9 +174,10 @@ bool ovl_is_whiteout(struct dentry *dentry);
 struct file *ovl_path_open(struct path *path, int flags);
 
 /* namei.c */
-int ovl_path_next(int idx, struct dentry *dentry, struct path *path);
+int ovl_path_next(int idx, struct dentry *dentry, struct path *path, int *idxp);
 struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags);
 bool ovl_lower_positive(struct dentry *dentry);
+struct dentry *ovl_dentry_at_idx(struct dentry *dentry, int idx);
 
 /* readdir.c */
 extern const struct file_operations ovl_dir_operations;
@@ -196,6 +200,9 @@ struct posix_acl *ovl_get_acl(struct inode *inode, int type);
 int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags);
 int ovl_update_time(struct inode *inode, struct timespec *ts, int flags);
 bool ovl_is_private_xattr(const char *name);
+int ovl_getattr_int(struct dentry *dentry, struct path *realpath,
+		    struct kstat *stat);
+void ovl_get_ino(struct dentry *realdentry, u64 *ino);
 
 struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev);
 struct inode *ovl_get_inode(struct super_block *sb, struct inode *realinode);

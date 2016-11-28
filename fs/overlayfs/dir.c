@@ -149,13 +149,10 @@ static int ovl_dir_getattr(struct vfsmount *mnt, struct dentry *dentry,
 
 	type = ovl_path_real(dentry, &realpath);
 	old_cred = ovl_override_creds(dentry->d_sb);
-	err = vfs_getattr(&realpath, stat);
+	err = ovl_getattr_int(dentry, &realpath, stat);
 	revert_creds(old_cred);
 	if (err)
 		return err;
-
-	stat->dev = dentry->d_sb->s_dev;
-	stat->ino = dentry->d_inode->i_ino;
 
 	/*
 	 * It's probably not worth it to count subdirs to get the
@@ -266,7 +263,7 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 		goto out;
 
 	ovl_path_upper(dentry, &upperpath);
-	err = vfs_getattr(&upperpath, &stat);
+	err = ovl_getattr_int(dentry, &upperpath, &stat);
 	if (err)
 		goto out_unlock;
 
@@ -294,9 +291,7 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 	if (err)
 		goto out_cleanup;
 
-	inode_lock(opaquedir->d_inode);
 	err = ovl_set_attr(opaquedir, &stat);
-	inode_unlock(opaquedir->d_inode);
 	if (err)
 		goto out_cleanup;
 

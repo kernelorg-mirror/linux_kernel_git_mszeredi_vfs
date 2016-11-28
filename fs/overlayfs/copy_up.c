@@ -177,6 +177,7 @@ int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 {
 	int err = 0;
 
+	inode_lock(upperdentry->d_inode);
 	if (!S_ISLNK(stat->mode)) {
 		struct iattr attr = {
 			.ia_valid = ATTR_MODE,
@@ -194,6 +195,15 @@ int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 	}
 	if (!err)
 		ovl_set_timestamps(upperdentry, stat);
+	inode_unlock(upperdentry->d_inode);
+
+	if (!err) {
+		char buf[17];
+
+		snprintf(buf, sizeof(buf), "%llx", stat->ino);
+		err = ovl_do_setxattr(upperdentry, OVL_XATTR_INO,
+				      buf, strlen(buf), 0);
+	}
 
 	return err;
 }
@@ -258,11 +268,11 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	if (err)
 		goto out_cleanup;
 
-	inode_lock(newdentry->d_inode);
 	err = ovl_set_attr(newdentry, stat);
-	inode_unlock(newdentry->d_inode);
 	if (err)
 		goto out_cleanup;
+
+	ovl_dentry_set_ino(dentry, stat->ino);
 
 	err = ovl_do_rename(wdir, newdentry, udir, upper, 0);
 	if (err)
@@ -373,7 +383,7 @@ int ovl_copy_up(struct dentry *dentry)
 		}
 
 		ovl_path_lower(next, &lowerpath);
-		err = vfs_getattr(&lowerpath, &stat);
+		err = ovl_getattr_int(next, &lowerpath, &stat);
 		if (!err)
 			err = ovl_copy_up_one(parent, next, &lowerpath, &stat);
 

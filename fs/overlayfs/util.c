@@ -206,6 +206,21 @@ void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect)
 	oe->redirect = redirect;
 }
 
+u64 ovl_dentry_get_ino(struct dentry *dentry)
+{
+	struct ovl_entry *oe = dentry->d_fsdata;
+
+	return oe->ino;
+}
+
+void ovl_dentry_set_ino(struct dentry *dentry, u64 ino)
+{
+	struct ovl_entry *oe = dentry->d_fsdata;
+
+	WARN_ON(oe->ino && oe->ino != ino);
+	oe->ino = ino;
+}
+
 void ovl_dentry_update(struct dentry *dentry, struct dentry *upperdentry)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;

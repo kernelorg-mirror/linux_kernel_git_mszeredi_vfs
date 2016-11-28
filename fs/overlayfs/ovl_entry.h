@@ -36,6 +36,7 @@ struct ovl_entry {
 	union {
 		struct {
 			u64 version;
+			u64 ino;
 			const char *redirect;
 			bool opaque;
 		};
