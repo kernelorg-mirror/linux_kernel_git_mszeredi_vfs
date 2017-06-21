@@ -2120,3 +2120,53 @@ struct timespec current_time(struct inode *inode)
 	return timespec_trunc(now, inode->i_sb->s_time_gran);
 }
 EXPORT_SYMBOL(current_time);
+
+/**
+ * inode_inuse_trylock - try to get an exclusive 'inuse' lock on inode
+ * @inode: inode being locked
+ *
+ * The 'inuse' lock is an 'advisory' lock that can be used to extend exclusive
+ * create protection beyond parent->i_mutex lock among cooperating users.
+ * Used by overlayfs to get exclusive ownership on upper and work dirs among
+ * overlayfs mounts.
+ *
+ * Caller must hold a reference to inode to prevent it from being freed while
+ * it is marked inuse.
+ *
+ * Return true if I_INUSE flag was set by this call.
+ */
+bool inode_inuse_trylock(struct inode *inode)
+{
+	bool locked = false;
+
+	spin_lock(&inode->i_lock);
+	if (!WARN_ON(!atomic_read(&inode->i_count)) &&
+	    !WARN_ON(inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) &&
+	    !(inode->i_state & I_INUSE)) {
+		inode->i_state |= I_INUSE;
+		locked = true;
+	}
+	spin_unlock(&inode->i_lock);
+	return locked;
+}
+EXPORT_SYMBOL(inode_inuse_trylock);
+
+/**
+ * inode_inuse_unlock - release exclusive 'inuse' lock
+ * @inode:	inode inuse to unlock
+ *
+ * Clear the I_INUSE state.
+ *
+ * Caller must hold a reference to inode and must have successfully marked
+ * the inode 'inuse' prior to this call.
+ */
+void inode_inuse_unlock(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	WARN_ON(!atomic_read(&inode->i_count));
+	WARN_ON(inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE));
+	WARN_ON(!(inode->i_state & I_INUSE));
+	inode->i_state &= ~I_INUSE;
+	spin_unlock(&inode->i_lock);
+}
+EXPORT_SYMBOL(inode_inuse_unlock);
