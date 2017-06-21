@@ -380,6 +380,84 @@ fail:
 }
 
 /*
+ * Lookup in indexdir for the index entry of a lower real inode or a copy up
+ * origin inode. The index entry name is the hex representation of the lower
+ * inode file handle.
+ *
+ * If the index dentry in negative, then either no lower aliases have been
+ * copied up yet, or aliases have been copied up in older kernels and are
+ * not indexed.
+ *
+ * If the index dentry for a copy up origin inode is positive, but points
+ * to an inode different than the upper inode, then either the upper inode
+ * has been copied up and not indexed or it was indexed, but since then
+ * index dir was cleared. Either way, that index cannot be used to indentify
+ * the overlay inode.
+ */
+int ovl_lookup_index(struct dentry *dentry, struct dentry *upper,
+		     struct dentry *lower, struct dentry **indexp)
+{
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+	struct ovl_fh *fh;
+	struct dentry *index = NULL;
+	struct inode *inode;
+	char *s, *name = NULL;
+	long namelen = 0;
+	int err;
+
+	if (WARN_ON(!ofs->indexdir))
+		return -ENOENT;
+
+	fh = ovl_encode_fh(lower, false);
+	if (IS_ERR(fh)) {
+		err = PTR_ERR(fh);
+		fh = NULL;
+		goto fail;
+	}
+
+	err = -ENAMETOOLONG;
+	namelen = fh->len * 2;
+	if (namelen > ofs->namelen)
+		goto fail;
+
+	err = -ENOMEM;
+	name = kzalloc(namelen + 1, GFP_TEMPORARY);
+	if (!name)
+		goto fail;
+
+	s  = bin2hex(name, fh, fh->len);
+	namelen = s - name;
+
+	index = lookup_one_len_unlocked(name, ofs->indexdir, namelen);
+	if (IS_ERR(index)) {
+		err = PTR_ERR(index);
+		goto fail;
+	}
+
+	if (upper && d_inode(index) != d_inode(upper)) {
+		inode = d_inode(index);
+		pr_debug("ovl_lookup_index: upper with origin not indexed (%pd2, ino=%lu)\n",
+			 upper, inode ? inode->i_ino : 0);
+		dput(index);
+		index = NULL;
+	}
+
+	*indexp = index;
+	err = 0;
+
+out:
+	kfree(fh);
+	kfree(name);
+	return err;
+
+fail:
+	inode = d_inode(lower);
+	pr_warn_ratelimited("overlayfs: failed inode index lookup (ino=%lu, key=%*s, err=%i); mount with '-o index=off' to disable inodes index.\n",
+			    inode ? inode->i_ino : 0, (int)namelen, name, err);
+	goto out;
+}
+
+/*
  * Returns next layer in stack starting from top.
  * Returns -1 if this is the last layer.
  */
@@ -410,6 +488,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	struct ovl_entry *roe = dentry->d_sb->s_root->d_fsdata;
 	struct path *stack = NULL;
 	struct dentry *upperdir, *upperdentry = NULL;
+	struct dentry *index = NULL;
 	unsigned int ctr = 0;
 	struct inode *inode = NULL;
 	bool upperopaque = false;
@@ -507,6 +586,32 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		}
 	}
 
+	/* Lookup index by lower inode and verify it matches upper inode */
+	if (ctr && !d.is_dir && ovl_indexdir(dentry->d_sb)) {
+		struct dentry *origin = stack[0].dentry;
+
+		err = ovl_lookup_index(dentry, upperdentry, origin, &index);
+		if (err)
+			goto out_put;
+
+		if (!upperdentry) {
+			/* TODO: handle lookup of lower indexed entries */
+			dput(index);
+			index = NULL;
+		} else if (index && d_inode(index)) {
+			/* Vertified indexed upper */
+		} else if (d_inode(origin)->i_nlink > 1) {
+			WARN_ON(ctr > 1);
+			/*
+			 * Non-indexed upper of lower hardlink is a broken
+			 * hardlink - disown origin, because we cannot use
+			 * origin st_ino for a broken hardlink.
+			 */
+			dput(origin);
+			ctr = 0;
+		}
+	}
+
 	oe = ovl_alloc_entry(ctr);
 	err = -ENOMEM;
 	if (!oe)
@@ -523,9 +628,12 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			goto out_free_oe;
 
 		OVL_I(inode)->redirect = upperredirect;
+		if (index && d_inode(index))
+			ovl_set_flag(OVL_INDEX, inode);
 	}
 
 	revert_creds(old_cred);
+	dput(index);
 	kfree(stack);
 	kfree(d.redirect);
 	d_add(dentry, inode);
@@ -536,6 +644,7 @@ out_free_oe:
 	dentry->d_fsdata = NULL;
 	kfree(oe);
 out_put:
+	dput(index);
 	for (i = 0; i < ctr; i++)
 		dput(stack[i].dentry);
 	kfree(stack);

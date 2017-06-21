@@ -28,6 +28,7 @@ enum ovl_path_type {
 
 enum ovl_flag {
 	OVL_IMPURE,
+	OVL_INDEX,
 };
 
 /*
@@ -232,6 +233,8 @@ static inline bool ovl_is_impuredir(struct dentry *dentry)
 /* namei.c */
 int ovl_verify_origin(struct dentry *dentry, struct vfsmount *mnt,
 		      struct dentry *origin, bool is_upper, bool set);
+int ovl_lookup_index(struct dentry *dentry, struct dentry *upper,
+		     struct dentry *lower, struct dentry **indexp);
 int ovl_path_next(int idx, struct dentry *dentry, struct path *path);
 struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags);
 bool ovl_lower_positive(struct dentry *dentry);
