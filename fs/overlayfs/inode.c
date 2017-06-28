@@ -475,9 +475,13 @@ struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry)
 	if (!realinode)
 		realinode = d_inode(lowerdentry);
 
-	if (upperdentry && !d_is_dir(upperdentry)) {
-		inode = iget5_locked(dentry->d_sb, (unsigned long) realinode,
-				     ovl_inode_test, ovl_inode_set, realinode);
+	if (!S_ISDIR(realinode->i_mode) &&
+	    (upperdentry ||
+	     (lowerdentry && d_inode(lowerdentry)->i_nlink == 1))) {
+		struct inode *key = d_inode(lowerdentry ?: upperdentry);
+
+		inode = iget5_locked(dentry->d_sb, (unsigned long) key,
+				     ovl_inode_test, ovl_inode_set, key);
 		if (!inode)
 			goto out;
 		if (!(inode->i_state & I_NEW)) {
