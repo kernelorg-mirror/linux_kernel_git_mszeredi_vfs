@@ -462,17 +462,24 @@ static int ovl_inode_set(struct inode *inode, void *data)
 	return 0;
 }
 
-struct inode *ovl_get_inode(struct dentry *dentry)
+struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry)
 {
-	struct dentry *upperdentry = ovl_dentry_upper(dentry);
-	struct inode *realinode = d_inode(ovl_dentry_real(dentry));
+	struct dentry *lowerdentry = ovl_dentry_lower(dentry);
+	struct inode *realinode = upperdentry ? d_inode(upperdentry) : NULL;
 	struct inode *inode;
+
+	if (!realinode)
+		realinode = d_inode(lowerdentry);
 
 	if (upperdentry && !d_is_dir(upperdentry)) {
 		inode = iget5_locked(dentry->d_sb, (unsigned long) realinode,
 				     ovl_inode_test, ovl_inode_set, realinode);
-		if (!inode || !(inode->i_state & I_NEW))
+		if (!inode)
 			goto out;
+		if (!(inode->i_state & I_NEW)) {
+			dput(upperdentry);
+			goto out;
+		}
 
 		set_nlink(inode, realinode->i_nlink);
 	} else {
@@ -481,7 +488,7 @@ struct inode *ovl_get_inode(struct dentry *dentry)
 			goto out;
 	}
 	ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev);
-	ovl_inode_init(inode, dentry);
+	ovl_inode_init(inode, upperdentry, lowerdentry);
 	if (inode->i_state & I_NEW)
 		unlock_new_inode(inode);
 out:
