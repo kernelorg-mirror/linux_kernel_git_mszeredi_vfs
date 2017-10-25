@@ -328,12 +328,16 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 			inode_mark = hlist_entry(srcu_dereference(inode_node, &fsnotify_mark_srcu),
 						 struct fsnotify_mark, obj_list);
 			inode_group = inode_mark->group;
+			if (!(inode_mark->flags & FSNOTIFY_MARK_FLAG_ATTACHED))
+				goto skip_inode;
 		}
 
 		if (vfsmount_node) {
 			vfsmount_mark = hlist_entry(srcu_dereference(vfsmount_node, &fsnotify_mark_srcu),
 						    struct fsnotify_mark, obj_list);
 			vfsmount_group = vfsmount_mark->group;
+			if (!(vfsmount_mark->flags & FSNOTIFY_MARK_FLAG_ATTACHED))
+				goto skip_vfsmount;
 		}
 
 		iter_info.inode_mark = inode_mark;
@@ -357,10 +361,11 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 
 		if (ret && (mask & ALL_FSNOTIFY_PERM_EVENTS))
 			goto out;
-
+skip_inode:
 		if (inode_group)
 			inode_node = srcu_dereference(inode_node->next,
 						      &fsnotify_mark_srcu);
+skip_vfsmount:
 		if (vfsmount_group)
 			vfsmount_node = srcu_dereference(vfsmount_node->next,
 							 &fsnotify_mark_srcu);
