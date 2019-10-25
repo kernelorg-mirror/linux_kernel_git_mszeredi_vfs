@@ -535,11 +535,11 @@ void ovl_copy_up_end(struct dentry *dentry)
 	ovl_inode_unlock(d_inode(dentry));
 }
 
-bool ovl_check_origin_xattr(struct dentry *dentry)
+bool ovl_check_origin_xattr(struct ovl_fs *ofs, struct dentry *dentry)
 {
 	int res;
 
-	res = vfs_getxattr(dentry, OVL_XATTR_ORIGIN, NULL, 0);
+	res = ovl_own_getxattr(ofs, dentry, OVL_XATTR_ORIGIN, NULL, 0);
 
 	/* Zero size value means "copied up but origin unknown" */
 	if (res >= 0)
@@ -548,27 +548,49 @@ bool ovl_check_origin_xattr(struct dentry *dentry)
 	return false;
 }
 
-bool ovl_check_dir_xattr(struct dentry *dentry, const char *name)
+bool ovl_check_dir_xattr(struct super_block *sb, struct dentry *dentry,
+			 enum ovl_xattr ox)
 {
 	int res;
 	char val;
+	struct ovl_fs *ofs = sb->s_fs_info;
 
 	if (!d_is_dir(dentry))
 		return false;
 
-	res = vfs_getxattr(dentry, name, &val, 1);
+	res = ovl_own_getxattr(ofs, dentry, ox, &val, 1);
 	if (res == 1 && val == 'y')
 		return true;
 
 	return false;
 }
 
+#define OVL_XATTR_TAB_ENTRY(x) \
+	[x] = { [false] = OVL_XATTR_TRUSTED_PREFIX x ## _POSTFIX, \
+		[true] = OVL_XATTR_USER_PREFIX x ## _POSTFIX }
+
+static const char *ovl_xattr_table[][2] = {
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_OPAQUE),
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_REDIRECT),
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_ORIGIN),
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_IMPURE),
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_NLINK),
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_UPPER),
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_METACOPY),
+};
+
+static const char *ovl_xattr(struct ovl_fs *ofs, enum ovl_xattr ox)
+{
+	return ovl_xattr_table[ox][ofs->config.userxattr];
+}
+
 int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
-		       const char *name, const void *value, size_t size,
+		       enum ovl_xattr ox, const void *value, size_t size,
 		       int xerr)
 {
 	int err;
 	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+	const char *name = ovl_xattr(ofs, ox);
 
 	if (ofs->noxattr)
 		return xerr;
@@ -582,6 +604,18 @@ int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
 	}
 
 	return err;
+}
+
+bool ovl_is_private_xattr(struct super_block *sb, const char *name)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	if (ofs->config.userxattr)
+		return strncmp(name, OVL_XATTR_USER_PREFIX,
+			       sizeof(OVL_XATTR_USER_PREFIX) - 1) == 0;
+	else
+		return strncmp(name, OVL_XATTR_TRUSTED_PREFIX,
+			       sizeof(OVL_XATTR_TRUSTED_PREFIX) - 1) == 0;
 }
 
 int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry)
@@ -835,7 +869,7 @@ err:
 }
 
 /* err < 0, 0 if no metacopy xattr, 1 if metacopy xattr found */
-int ovl_check_metacopy_xattr(struct dentry *dentry)
+int ovl_check_metacopy_xattr(struct ovl_fs *ofs, struct dentry *dentry)
 {
 	int res;
 
@@ -843,7 +877,7 @@ int ovl_check_metacopy_xattr(struct dentry *dentry)
 	if (!S_ISREG(d_inode(dentry)->i_mode))
 		return 0;
 
-	res = vfs_getxattr(dentry, OVL_XATTR_METACOPY, NULL, 0);
+	res = ovl_own_getxattr(ofs, dentry, OVL_XATTR_METACOPY, NULL, 0);
 	if (res < 0) {
 		if (res == -ENODATA || res == -EOPNOTSUPP)
 			return 0;
@@ -872,8 +906,8 @@ bool ovl_is_metacopy_dentry(struct dentry *dentry)
 	return (oe->numlower > 1);
 }
 
-ssize_t ovl_getxattr(struct dentry *dentry, char *name, char **value,
-		     size_t padding)
+ssize_t ovl_getxattr(struct dentry *dentry, const char *name,
+		     char **value, size_t padding)
 {
 	ssize_t res;
 	char *buf = NULL;
@@ -905,12 +939,14 @@ fail:
 	return res;
 }
 
-char *ovl_get_redirect_xattr(struct dentry *dentry, int padding)
+char *ovl_get_redirect_xattr(struct ovl_fs *ofs, struct dentry *dentry,
+			     int padding)
 {
 	int res;
 	char *s, *next, *buf = NULL;
+	const char *name = ovl_xattr(ofs, OVL_XATTR_REDIRECT);
 
-	res = ovl_getxattr(dentry, OVL_XATTR_REDIRECT, &buf, padding + 1);
+	res = ovl_getxattr(dentry, name, &buf, padding + 1);
 	if (res == -ENODATA)
 		return NULL;
 	if (res < 0)
@@ -935,4 +971,28 @@ invalid:
 	res = -EINVAL;
 	kfree(buf);
 	return ERR_PTR(res);
+}
+
+int ovl_own_setxattr(struct ovl_fs *ofs, struct dentry *dentry,
+		     enum ovl_xattr ox, const void *value, size_t size)
+{
+	const char *name = ovl_xattr(ofs, ox);
+
+	return ovl_do_setxattr(dentry, name, value, size, 0);
+}
+
+int ovl_own_removexattr(struct ovl_fs *ofs, struct dentry *dentry,
+			enum ovl_xattr ox)
+{
+	const char *name = ovl_xattr(ofs, ox);
+
+	return ovl_do_removexattr(dentry, name);
+}
+
+ssize_t ovl_own_getxattr(struct ovl_fs *ofs, struct dentry *dentry,
+			 enum ovl_xattr ox, void *value, size_t size)
+{
+	const char *name = ovl_xattr(ofs, ox);
+
+	return vfs_getxattr(dentry, name, value, size);
 }

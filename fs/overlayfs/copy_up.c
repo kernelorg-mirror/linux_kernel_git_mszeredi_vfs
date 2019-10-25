@@ -43,7 +43,8 @@ static bool ovl_must_copy_xattr(const char *name)
 	       !strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN);
 }
 
-int ovl_copy_xattr(struct dentry *old, struct dentry *new)
+int ovl_copy_xattr(struct super_block *sb, struct dentry *old,
+		   struct dentry *new)
 {
 	ssize_t list_size, size, value_size = 0;
 	char *buf, *name, *value = NULL;
@@ -81,7 +82,7 @@ int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 		}
 		list_size -= slen;
 
-		if (ovl_is_private_xattr(name))
+		if (ovl_is_private_xattr(sb, name))
 			continue;
 retry:
 		size = vfs_getxattr(old, name, value, value_size);
@@ -320,7 +321,8 @@ int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 }
 
 /* Store file handle of @upper dir in @index dir entry */
-static int ovl_set_upper_fh(struct dentry *upper, struct dentry *index)
+static int ovl_set_upper_fh(struct ovl_fs *ofs, struct dentry *upper,
+			    struct dentry *index)
 {
 	const struct ovl_fh *fh;
 	int err;
@@ -329,7 +331,7 @@ static int ovl_set_upper_fh(struct dentry *upper, struct dentry *index)
 	if (IS_ERR(fh))
 		return PTR_ERR(fh);
 
-	err = ovl_do_setxattr(index, OVL_XATTR_UPPER, fh, fh->len, 0);
+	err = ovl_own_setxattr(ofs, index, OVL_XATTR_UPPER, fh, fh->len);
 
 	kfree(fh);
 	return err;
@@ -343,6 +345,7 @@ static int ovl_set_upper_fh(struct dentry *upper, struct dentry *index)
 static int ovl_create_index(struct dentry *dentry, struct dentry *origin,
 			    struct dentry *upper)
 {
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
 	struct dentry *indexdir = ovl_indexdir(dentry->d_sb);
 	struct inode *dir = d_inode(indexdir);
 	struct dentry *index = NULL;
@@ -374,7 +377,7 @@ static int ovl_create_index(struct dentry *dentry, struct dentry *origin,
 	if (IS_ERR(temp))
 		goto free_name;
 
-	err = ovl_set_upper_fh(upper, temp);
+	err = ovl_set_upper_fh(ofs, upper, temp);
 	if (err)
 		goto out;
 
@@ -470,7 +473,7 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 			return err;
 	}
 
-	err = ovl_copy_xattr(c->lowerpath.dentry, temp);
+	err = ovl_copy_xattr(c->dentry->d_sb, c->lowerpath.dentry, temp);
 	if (err)
 		return err;
 
@@ -749,6 +752,7 @@ static bool ovl_need_meta_copy_up(struct dentry *dentry, umode_t mode,
 /* Copy up data of an inode which was copied up metadata only in the past. */
 static int ovl_copy_up_meta_inode_data(struct ovl_copy_up_ctx *c)
 {
+	struct ovl_fs *ofs = c->dentry->d_sb->s_fs_info;
 	struct path upperpath, datapath;
 	int err;
 	char *capability = NULL;
@@ -785,7 +789,7 @@ static int ovl_copy_up_meta_inode_data(struct ovl_copy_up_ctx *c)
 	}
 
 
-	err = vfs_removexattr(upperpath.dentry, OVL_XATTR_METACOPY);
+	err = ovl_own_removexattr(ofs, upperpath.dentry, OVL_XATTR_METACOPY);
 	if (err)
 		goto out_free;
 
