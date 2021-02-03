@@ -80,6 +80,8 @@ prototypes::
 				struct file *, unsigned open_flag,
 				umode_t create_mode);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+	int (*miscattr_set)(struct dentry *dentry, struct miscattr *ma);
+	int (*miscattr_get)(struct dentry *dentry, struct miscattr *ma);
 
 locking rules:
 	all may block
@@ -107,6 +109,8 @@ fiemap:		no
 update_time:	no
 atomic_open:	shared (exclusive if O_CREAT is set in open flags)
 tmpfile:	no
+miscattr_get:	no or exclusive
+miscattr_set:	exclusive
 ============	=============================================
 
 

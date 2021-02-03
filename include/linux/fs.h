@@ -68,6 +68,7 @@ struct fsverity_info;
 struct fsverity_operations;
 struct fs_context;
 struct fs_parameter_spec;
+struct miscattr;
 
 extern void __init inode_init(void);
 extern void __init inode_init_early(void);
@@ -1887,6 +1888,8 @@ struct inode_operations {
 			   umode_t create_mode);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
 	int (*set_acl)(struct inode *, struct posix_acl *, int);
+	int (*miscattr_set)(struct dentry *dentry, struct miscattr *ma);
+	int (*miscattr_get)(struct dentry *dentry, struct miscattr *ma);
 } ____cacheline_aligned;
 
 static inline ssize_t call_read_iter(struct file *file, struct kiocb *kio,
