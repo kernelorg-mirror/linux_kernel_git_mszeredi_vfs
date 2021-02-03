@@ -2145,6 +2145,8 @@ static const struct inode_operations gfs2_file_iops = {
 	.get_acl = gfs2_get_acl,
 	.set_acl = gfs2_set_acl,
 	.update_time = gfs2_update_time,
+	.miscattr_get = gfs2_miscattr_get,
+	.miscattr_set = gfs2_miscattr_set,
 };
 
 static const struct inode_operations gfs2_dir_iops = {
@@ -2166,6 +2168,8 @@ static const struct inode_operations gfs2_dir_iops = {
 	.set_acl = gfs2_set_acl,
 	.update_time = gfs2_update_time,
 	.atomic_open = gfs2_atomic_open,
+	.miscattr_get = gfs2_miscattr_get,
+	.miscattr_set = gfs2_miscattr_set,
 };
 
 static const struct inode_operations gfs2_symlink_iops = {
