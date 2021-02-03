@@ -18,6 +18,7 @@
 #include <linux/fs_stack.h>
 #include <linux/slab.h>
 #include <linux/xattr.h>
+#include <linux/miscattr.h>
 #include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
@@ -1097,6 +1098,22 @@ out:
 	return rc;
 }
 
+static int ecryptfs_miscattr_get(struct dentry *dentry, struct miscattr *ma)
+{
+	return vfs_miscattr_get(ecryptfs_dentry_to_lower(dentry), ma);
+}
+
+static int ecryptfs_miscattr_set(struct dentry *dentry, struct miscattr *ma)
+{
+	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
+	int rc;
+
+	rc = vfs_miscattr_set(lower_dentry, ma);
+	fsstack_copy_attr_all(d_inode(dentry), d_inode(lower_dentry));
+
+	return rc;
+}
+
 const struct inode_operations ecryptfs_symlink_iops = {
 	.get_link = ecryptfs_get_link,
 	.permission = ecryptfs_permission,
@@ -1118,6 +1135,8 @@ const struct inode_operations ecryptfs_dir_iops = {
 	.permission = ecryptfs_permission,
 	.setattr = ecryptfs_setattr,
 	.listxattr = ecryptfs_listxattr,
+	.miscattr_get = ecryptfs_miscattr_get,
+	.miscattr_set = ecryptfs_miscattr_set,
 };
 
 const struct inode_operations ecryptfs_main_iops = {
@@ -1125,6 +1144,8 @@ const struct inode_operations ecryptfs_main_iops = {
 	.setattr = ecryptfs_setattr,
 	.getattr = ecryptfs_getattr,
 	.listxattr = ecryptfs_listxattr,
+	.miscattr_get = ecryptfs_miscattr_get,
+	.miscattr_set = ecryptfs_miscattr_set,
 };
 
 static int ecryptfs_xattr_get(const struct xattr_handler *handler,
