@@ -2052,6 +2052,8 @@ int ubifs_recover_size(struct ubifs_info *c, bool in_place);
 void ubifs_destroy_size_tree(struct ubifs_info *c);
 
 /* ioctl.c */
+int ubifs_miscattr_get(struct dentry *dentry, struct miscattr *ma);
+int ubifs_miscattr_set(struct dentry *dentry, struct miscattr *ma);
 long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 void ubifs_set_inode_flags(struct inode *inode);
 #ifdef CONFIG_COMPAT
