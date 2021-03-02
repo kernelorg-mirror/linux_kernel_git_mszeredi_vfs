@@ -1648,6 +1648,8 @@ const struct inode_operations ubifs_file_inode_operations = {
 	.getattr     = ubifs_getattr,
 	.listxattr   = ubifs_listxattr,
 	.update_time = ubifs_update_time,
+	.miscattr_get = ubifs_miscattr_get,
+	.miscattr_set = ubifs_miscattr_set,
 };
 
 const struct inode_operations ubifs_symlink_inode_operations = {

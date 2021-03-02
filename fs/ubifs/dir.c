@@ -1637,6 +1637,8 @@ const struct inode_operations ubifs_dir_inode_operations = {
 	.listxattr   = ubifs_listxattr,
 	.update_time = ubifs_update_time,
 	.tmpfile     = ubifs_tmpfile,
+	.miscattr_get = ubifs_miscattr_get,
+	.miscattr_set = ubifs_miscattr_set,
 };
 
 const struct file_operations ubifs_dir_operations = {
