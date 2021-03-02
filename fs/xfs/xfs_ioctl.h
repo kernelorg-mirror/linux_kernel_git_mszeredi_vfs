@@ -47,6 +47,17 @@ xfs_handle_to_dentry(
 	void __user		*uhandle,
 	u32			hlen);
 
+extern int
+xfs_miscattr_get(
+	struct dentry		*dentry,
+	struct miscattr		*ma);
+
+extern int
+xfs_miscattr_set(
+	struct user_namespace	*mnt_userns,
+	struct dentry		*dentry,
+	struct miscattr		*ma);
+
 extern long
 xfs_file_ioctl(
 	struct file		*filp,

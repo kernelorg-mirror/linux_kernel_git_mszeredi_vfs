@@ -21,6 +21,7 @@
 #include "xfs_dir2.h"
 #include "xfs_iomap.h"
 #include "xfs_error.h"
+#include "xfs_ioctl.h"
 
 #include <linux/posix_acl.h>
 #include <linux/security.h>
@@ -1152,6 +1153,8 @@ static const struct inode_operations xfs_inode_operations = {
 	.listxattr		= xfs_vn_listxattr,
 	.fiemap			= xfs_vn_fiemap,
 	.update_time		= xfs_vn_update_time,
+	.miscattr_get		= xfs_miscattr_get,
+	.miscattr_set		= xfs_miscattr_set,
 };
 
 static const struct inode_operations xfs_dir_inode_operations = {
@@ -1177,6 +1180,8 @@ static const struct inode_operations xfs_dir_inode_operations = {
 	.listxattr		= xfs_vn_listxattr,
 	.update_time		= xfs_vn_update_time,
 	.tmpfile		= xfs_vn_tmpfile,
+	.miscattr_get		= xfs_miscattr_get,
+	.miscattr_set		= xfs_miscattr_set,
 };
 
 static const struct inode_operations xfs_dir_ci_inode_operations = {
@@ -1202,6 +1207,8 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 	.listxattr		= xfs_vn_listxattr,
 	.update_time		= xfs_vn_update_time,
 	.tmpfile		= xfs_vn_tmpfile,
+	.miscattr_get		= xfs_miscattr_get,
+	.miscattr_set		= xfs_miscattr_set,
 };
 
 static const struct inode_operations xfs_symlink_inode_operations = {
