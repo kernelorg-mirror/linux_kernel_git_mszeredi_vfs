@@ -569,6 +569,8 @@ const struct inode_operations hfsplus_dir_inode_operations = {
 	.rename			= hfsplus_rename,
 	.getattr		= hfsplus_getattr,
 	.listxattr		= hfsplus_listxattr,
+	.miscattr_get		= hfsplus_miscattr_get,
+	.miscattr_set		= hfsplus_miscattr_set,
 };
 
 const struct file_operations hfsplus_dir_operations = {
