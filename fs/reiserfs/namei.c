@@ -1660,6 +1660,8 @@ const struct inode_operations reiserfs_dir_inode_operations = {
 	.permission = reiserfs_permission,
 	.get_acl = reiserfs_get_acl,
 	.set_acl = reiserfs_set_acl,
+	.miscattr_get = reiserfs_miscattr_get,
+	.miscattr_set = reiserfs_miscattr_set,
 };
 
 /*
