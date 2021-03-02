@@ -521,6 +521,9 @@ int __init ovl_aio_request_cache_init(void);
 void ovl_aio_request_cache_destroy(void);
 long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 long ovl_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+int ovl_miscattr_get(struct dentry *dentry, struct miscattr *ma);
+int ovl_miscattr_set(struct user_namespace *mnt_userns,
+		     struct dentry *dentry, struct miscattr *ma);
 
 /* copy_up.c */
 int ovl_copy_up(struct dentry *dentry);
