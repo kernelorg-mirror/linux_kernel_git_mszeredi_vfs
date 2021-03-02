@@ -148,6 +148,8 @@ const struct inode_operations nilfs_file_inode_operations = {
 	.setattr	= nilfs_setattr,
 	.permission     = nilfs_permission,
 	.fiemap		= nilfs_fiemap,
+	.miscattr_get	= nilfs_miscattr_get,
+	.miscattr_set	= nilfs_miscattr_set,
 };
 
 /* end of file */
