@@ -10556,6 +10556,8 @@ static const struct inode_operations btrfs_dir_inode_operations = {
 	.set_acl	= btrfs_set_acl,
 	.update_time	= btrfs_update_time,
 	.tmpfile        = btrfs_tmpfile,
+	.miscattr_get	= btrfs_miscattr_get,
+	.miscattr_set	= btrfs_miscattr_set,
 };
 
 static const struct file_operations btrfs_dir_file_operations = {
@@ -10609,6 +10611,8 @@ static const struct inode_operations btrfs_file_inode_operations = {
 	.get_acl	= btrfs_get_acl,
 	.set_acl	= btrfs_set_acl,
 	.update_time	= btrfs_update_time,
+	.miscattr_get	= btrfs_miscattr_get,
+	.miscattr_set	= btrfs_miscattr_set,
 };
 static const struct inode_operations btrfs_special_inode_operations = {
 	.getattr	= btrfs_getattr,
