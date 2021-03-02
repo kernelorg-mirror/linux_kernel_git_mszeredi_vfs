@@ -4144,6 +4144,8 @@ const struct inode_operations ext4_dir_inode_operations = {
 	.get_acl	= ext4_get_acl,
 	.set_acl	= ext4_set_acl,
 	.fiemap         = ext4_fiemap,
+	.miscattr_get	= ext4_miscattr_get,
+	.miscattr_set	= ext4_miscattr_set,
 };
 
 const struct inode_operations ext4_special_inode_operations = {
