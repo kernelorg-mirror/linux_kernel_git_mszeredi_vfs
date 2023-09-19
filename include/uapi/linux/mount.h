@@ -138,4 +138,33 @@ struct mount_attr {
 /* List of all mount_attr versions. */
 #define MOUNT_ATTR_SIZE_VER0	32 /* sizeof first published struct */
 
+struct statmnt {
+	__u64 mask;		/* What results were written [uncond] */
+	__u32 sb_dev_major;	/* Device ID */
+	__u32 sb_dev_minor;
+	__u64 sb_magic;		/* ..._SUPER_MAGIC */
+	__u32 sb_flags;		/* MS_{RDONLY,SYNCHRONOUS,DIRSYNC,LAZYTIME} */
+	__u32 __spare1;
+	__u64 mnt_id;		/* Unique ID of mount */
+	__u64 mnt_parent_id;	/* Unique ID of parent (for root == mnt_id) */
+	__u32 mnt_id_old;	/* Reused IDs used in proc/.../mountinfo */
+	__u32 mnt_parent_id_old;
+	__u64 mnt_attr;		/* MOUNT_ATTR_... */
+	__u64 mnt_propagation;	/* MS_{SHARED,SLAVE,PRIVATE,UNBINDABLE} */
+	__u64 mnt_peer_group;	/* ID of shared peer group */
+	__u64 mnt_master;	/* Mount receives propagation from this ID */
+	__u64 propagate_from;	/* Propagation from in current namespace */
+	__u64 mnt_root;		/* [str] Root of mount relative to root of fs */
+	__u64 mountpoint;	/* [str] Mountpoint relative to root of process */
+	__u64 fs_type;		/* [srt] Filesystem type */
+	__u64 __spare[49];
+};
+
+#define STMT_SB_BASIC		0x00000001U     /* Want/got sb_... */
+#define STMT_MNT_BASIC		0x00000002U	/* Want/got mnt_... */
+#define STMT_PROPAGATE_FROM	0x00000004U	/* Want/got propagate_from */
+#define STMT_MNT_ROOT		0x00000008U	/* Want/got mnt_root  */
+#define STMT_MOUNTPOINT		0x00000010U	/* Want/got mountpoint */
+#define STMT_FS_TYPE		0x00000020U	/* Want/got fs_type */
+
 #endif /* _UAPI_LINUX_MOUNT_H */
