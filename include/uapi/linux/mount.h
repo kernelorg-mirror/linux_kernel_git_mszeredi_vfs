@@ -167,4 +167,7 @@ struct statmnt {
 #define STMT_MOUNTPOINT		0x00000010U	/* Want/got mountpoint */
 #define STMT_FS_TYPE		0x00000020U	/* Want/got fs_type */
 
+/* listmount(2) flags */
+#define LISTMOUNT_UNREACHABLE	0x01	/* List unreachable mounts too */
+
 #endif /* _UAPI_LINUX_MOUNT_H */
