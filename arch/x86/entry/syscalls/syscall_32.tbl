@@ -458,3 +458,4 @@
 451	i386	cachestat		sys_cachestat
 452	i386	fchmodat2		sys_fchmodat2
 454	i386	statmount		sys_statmount
+455	i386	listmount		sys_listmount
