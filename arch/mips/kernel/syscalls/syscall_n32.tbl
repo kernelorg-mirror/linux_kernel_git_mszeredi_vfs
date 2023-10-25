@@ -391,3 +391,6 @@
 450	n32	set_mempolicy_home_node		sys_set_mempolicy_home_node
 451	n32	cachestat			sys_cachestat
 452	n32	fchmodat2			sys_fchmodat2
+# 453 reserved for map_shadow_stack
+454	n32	statmount			sys_statmount
+455	n32	listmount			sys_listmount

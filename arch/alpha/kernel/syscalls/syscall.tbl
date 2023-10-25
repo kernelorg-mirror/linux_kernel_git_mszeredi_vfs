@@ -492,3 +492,6 @@
 560	common	set_mempolicy_home_node		sys_ni_syscall
 561	common	cachestat			sys_cachestat
 562	common	fchmodat2			sys_fchmodat2
+# 563 reserved for map_shadow_stack
+564	common	statmount			sys_statmount
+565	common	listmount			sys_listmount

@@ -911,6 +911,10 @@ __SYSCALL(__NR_set_mempolicy_home_node, sys_set_mempolicy_home_node)
 __SYSCALL(__NR_cachestat, sys_cachestat)
 #define __NR_fchmodat2 452
 __SYSCALL(__NR_fchmodat2, sys_fchmodat2)
+#define __NR_statmount 454
+__SYSCALL(__NR_statmount, sys_statmount)
+#define __NR_listmount 455
+__SYSCALL(__NR_listmount, sys_listmount)
 
 /*
  * Please add new compat syscalls above this comment and update
